@@ -179,7 +179,7 @@ def run_training_pipeline_local(
         result = train_model(name, x_train, y_train, x_val, y_val, seed=seed)
         trained[name] = result.estimator
         per_model_metrics[name] = result.metrics
-        val_predictions[name] = result.estimator.predict(x_val) # type: ignore[attr-defined]
+        val_predictions[name] = result.estimator.predict(x_val)  # type: ignore[attr-defined]
 
     # --- Fan-in: inverse-RMSE weighted ensemble ------------------------------
     rmses = {name: m["rmse"] for name, m in per_model_metrics.items()}
