@@ -38,7 +38,7 @@ repos:
       - id: flake8
         additional_dependencies: ["flake8-bugbear==24.4.26"]
         args:
-          - "--max-line-length=88"
+          - "--max-line-length=120"
           # E203/W503 conflict with Black; B905 zip strict is noisy for py310.
           - "--extend-ignore=E203,W503"
           - "--exclude=deployment/compiled,.venv,build,dist"
