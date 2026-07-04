@@ -1,0 +1,67 @@
+name: deploy
+
+# Manual, gated deployment to Vertex AI Pipelines (serverless). This is the ONLY
+# workflow permitted to submit runs. Uses Workload Identity Federation (no
+# long-lived JSON keys). Triggered manually or on a schedule.
+on:
+  workflow_dispatch:
+    inputs:
+      pipeline:
+        description: "Pipeline to deploy"
+        required: true
+        default: "data"
+        type: choice
+        options: [data, training]
+      mode:
+        description: "submit (one run) or schedule (recurring cron)"
+        required: true
+        default: "submit"
+        type: choice
+        options: [submit, schedule]
+      cron:
+        description: "Cron expression (only used when mode=schedule)"
+        required: false
+        default: "0 6 * * 1"
+
+permissions:
+  contents: read
+  id-token: write  # Required for Workload Identity Federation.
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production  # Add required reviewers here for a manual gate.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv (pinned) + project Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - run: uv sync --extra data --extra tracking
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.VERTEX_SA_EMAIL }}
+
+      - name: Submit / schedule pipeline
+        env:
+          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
+          GCP_REGION: ${{ secrets.GCP_REGION }}
+          GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
+          GCS_PIPELINE_ROOT: ${{ secrets.GCS_PIPELINE_ROOT }}
+          GCS_DRIFT_PREFIX: ${{ secrets.GCS_DRIFT_PREFIX }}
+          GCS_MODEL_PREFIX: ${{ secrets.GCS_MODEL_PREFIX }}
+          VERTEX_SA_EMAIL: ${{ secrets.VERTEX_SA_EMAIL }}
+        run: |
+          if [ "${{ inputs.mode }}" = "schedule" ]; then
+            uv run python deployment/deploy_pipeline.py \
+              --pipeline "${{ inputs.pipeline }}" \
+              --schedule "${{ inputs.cron }}"
+          else
+            uv run python deployment/deploy_pipeline.py \
+              --pipeline "${{ inputs.pipeline }}" --submit
+          fi

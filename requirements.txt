@@ -1,0 +1,23 @@
+# ---------------------------------------------------------------------------
+# DEPRECATED: this project uses `uv` for dependency management.
+#
+# The authoritative, fully-pinned, cross-platform lockfile is `uv.lock`.
+# Install with:
+#     uv sync                          # runtime + dev group
+#     uv sync --extra data --extra notebook --extra tracking   # everything
+#
+# This file is kept only as a convenience for environments without uv. To
+# regenerate a plain pip requirements export from the lock, run:
+#     uv export --no-hashes --format requirements-txt > requirements.txt
+#
+# Do NOT hand-edit; edit `pyproject.toml` and re-run `uv lock` instead.
+# ---------------------------------------------------------------------------
+kfp==2.7.0
+google-cloud-aiplatform==1.60.0
+google-cloud-storage==2.17.0
+google-cloud-bigquery==3.25.0
+pandas==2.2.2
+numpy==1.26.4
+scikit-learn==1.5.1
+pyyaml==6.0.2
+python-dotenv==1.0.1

@@ -147,6 +147,21 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
+# Project-specific: compiled KFP specs, dbt build output, local model/data dumps
+deployment/compiled/*.yaml
+!deployment/compiled/.gitkeep
+dbt/target/
+dbt/dbt_packages/
+dbt/logs/
+*.pkl
+mlruns/
+
+# Locally generated datasets + local pipeline run artifacts (never commit data)
+data/raw/*.csv
+data/raw/*.parquet
+data/local_run/
+!data/raw/.gitkeep
+
 # Environments
 .env
 .envrc
@@ -195,9 +210,9 @@ cython_debug/
 .abstra/
 
 # Visual Studio Code
-#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore 
+#   Visual Studio Code specific template is maintained in a separate VisualStudioCode.gitignore
 #   that can be found at https://github.com/github/gitignore/blob/main/Global/VisualStudioCode.gitignore
-#   and can be added to the global gitignore or merged into this file. However, if you prefer, 
+#   and can be added to the global gitignore or merged into this file. However, if you prefer,
 #   you could uncomment the following to ignore the entire vscode folder
 # .vscode/
 # Temporary file for partial code execution

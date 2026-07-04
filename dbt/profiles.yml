@@ -1,0 +1,16 @@
+# dbt profile for BigQuery Sandbox. Values come from env vars injected by the
+# KFP `run_dbt_transform` component. For LOCAL dbt runs, either set these env
+# vars or replace with literals (never commit real credentials).
+demand_forecasting:
+  target: prod
+  outputs:
+    prod:
+      type: bigquery
+      method: oauth  # Uses Application Default Credentials (gcloud auth).
+      project: "{{ env_var('DBT_PROJECT_ID') }}"
+      dataset: "{{ env_var('DBT_DATASET', 'demand_mart') }}"
+      location: "{{ env_var('DBT_LOCATION', 'US') }}"
+      threads: 2
+      priority: interactive
+      # Sandbox guardrail: abort queries scanning more than ~1 GB.
+      maximum_bytes_billed: 1000000000

@@ -1,0 +1,95 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gcp-demand-forecasting"
+version = "0.1.0"
+description = "Production-grade time-series demand forecasting on GCP Free Tier (Vertex AI Pipelines, serverless)."
+readme = "README.md"
+requires-python = ">=3.10,<3.12"
+license = { text = "Apache-2.0" }
+authors = [{ name = "MLOps Team" }]
+
+# NOTE: These are the *authoring/CI* dependencies. Individual KFP components
+# pin their own lightweight images to keep serverless execution cost near zero.
+dependencies = [
+    "kfp==2.7.0",
+    "google-cloud-aiplatform==1.60.0",
+    "google-cloud-storage==2.17.0",
+    "google-cloud-bigquery==3.25.0",
+    "pandas==2.2.2",
+    "numpy==1.26.4",
+    "scikit-learn==1.5.1",
+    "pyyaml==6.0.2",
+    "python-dotenv==1.0.1",
+]
+
+[project.optional-dependencies]
+data = [
+    "dbt-core==1.8.3",
+    "dbt-bigquery==1.8.2",
+    "evidently==0.4.30",
+    "ydata-profiling==4.9.0",
+]
+tracking = [
+    "mlflow==2.14.3",
+]
+notebook = [
+    "jupyterlab>=4.2",
+    "matplotlib>=3.9,<4",
+    "ipykernel>=6.29",
+]
+
+# ----------------------------------------------------------------------------
+# uv "dev" dependency-group: installed by default with `uv sync`, excluded from
+# published wheels. Managed via `uv add --dev <pkg>`.
+# ----------------------------------------------------------------------------
+[dependency-groups]
+dev = [
+    "pytest==8.2.2",
+    "pytest-cov==5.0.0",
+    "pytest-mock==3.14.0",
+    "black==24.4.2",
+    "isort==5.13.2",
+    "flake8==7.1.0",
+    "flake8-bugbear==24.4.26",
+    "pre-commit==3.7.1",
+    "mypy==1.10.1",
+]
+
+# ----------------------------------------------------------------------------
+# uv configuration. `uv sync --all-extras` installs data+tracking+notebook too.
+# ----------------------------------------------------------------------------
+[tool.uv]
+# Default dev group is auto-installed by `uv sync`; keep extras opt-in.
+default-groups = ["dev"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+# ----------------------------------------------------------------------------
+# Formatting / linting configuration (kept in sync with .pre-commit-config.yaml)
+# ----------------------------------------------------------------------------
+[tool.black]
+line-length = 88
+target-version = ["py310"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+known_first_party = ["forecasting"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+addopts = "-ra -q --strict-markers --cov=forecasting --cov-report=term-missing"
+testpaths = ["tests"]
+markers = [
+    "unit: fast, isolated unit tests (no cloud calls).",
+    "integration: tests that touch GCP/BigQuery/GCS (may incur micro-billing).",
+]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+warn_unused_ignores = true

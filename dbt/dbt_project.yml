@@ -1,0 +1,28 @@
+name: "demand_forecasting"
+version: "1.0.0"
+config-version: 2
+
+# This profile is resolved from env vars set by the KFP dbt component
+# (see forecasting/components/data_components.py::run_dbt_transform).
+profile: "demand_forecasting"
+
+model-paths: ["models"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: "target"
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# BigQuery Sandbox free-tier guardrails:
+#  * All models materialize as tables in the mart dataset.
+#  * Partition by date to minimize bytes scanned on downstream queries.
+models:
+  demand_forecasting:
+    +materialized: table
+    staging:
+      +materialized: view  # Views cost 0 storage in the Sandbox.
+    marts:
+      +materialized: table

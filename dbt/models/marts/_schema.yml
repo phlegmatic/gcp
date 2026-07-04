@@ -1,0 +1,12 @@
+version: 2
+
+models:
+  - name: demand_features
+    description: "Feature mart consumed by the training + drift KFP pipelines."
+    columns:
+      - name: ds
+        tests: [not_null]
+      - name: demand
+        tests: [not_null]
+      - name: lag_14
+        tests: [not_null]

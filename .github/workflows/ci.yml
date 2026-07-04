@@ -1,0 +1,48 @@
+name: ci
+
+# Runs on every push/PR. Zero GCP cost: lint + unit tests + pipeline COMPILE
+# only. Never submits a run to Vertex AI from CI on PRs.
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv (pinned) + project Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Sync environment (dev group + data/tracking extras)
+        run: uv sync --extra data --extra tracking
+
+      - name: Pre-commit (Black, isort, flake8, mypy)
+        run: uv run pre-commit run --all-files --show-diff-on-failure
+
+      - name: Unit tests
+        run: uv run pytest -m unit
+
+      - name: Compile pipelines (no submission, no cost)
+        run: |
+          uv run python deployment/deploy_pipeline.py --pipeline data --compile-only
+          uv run python deployment/deploy_pipeline.py --pipeline training --compile-only
+        env:
+          # Dummy values so config validation passes during compile.
+          GCP_PROJECT_ID: ci-dummy
+          GCP_REGION: us-central1
+          GCS_BUCKET: ci-dummy-bucket
+          GCS_PIPELINE_ROOT: gs://ci-dummy-bucket/pipeline-root
+          GCS_DRIFT_PREFIX: gs://ci-dummy-bucket/drift
+          GCS_MODEL_PREFIX: gs://ci-dummy-bucket/models
+
+      - name: Upload compiled specs
+        uses: actions/upload-artifact@v4
+        with:
+          name: compiled-pipelines
+          path: deployment/compiled/*_latest.yaml

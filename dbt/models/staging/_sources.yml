@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: demand_raw
+    database: "{{ env_var('DBT_PROJECT_ID') }}"
+    schema: demand_raw
+    tables:
+      - name: sales
+        description: "Raw daily sales/demand records ingested into BigQuery."
+        columns:
+          - name: sale_date
+            tests: [not_null]
+          - name: units_sold
+            tests: [not_null]

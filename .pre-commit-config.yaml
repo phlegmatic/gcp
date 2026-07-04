@@ -1,0 +1,58 @@
+# Pre-commit hooks for the GCP Free-Tier demand-forecasting repo.
+# Install once:   pre-commit install
+# Run manually:   pre-commit run --all-files
+# Keep versions in sync with the [dev] extra in pyproject.toml.
+
+default_language_version:
+  python: python3.11
+
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ["--allow-multiple-documents"]  # KFP specs are multi-doc YAML.
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]  # Block accidental data/model commits.
+      - id: check-merge-conflict
+      - id: detect-private-key
+      - id: check-toml
+
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        args: ["--line-length=88"]
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        args: ["--profile=black", "--line-length=88"]
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.0
+    hooks:
+      - id: flake8
+        additional_dependencies: ["flake8-bugbear==24.4.26"]
+        args:
+          - "--max-line-length=88"
+          # E203/W503 conflict with Black; B905 zip strict is noisy for py310.
+          - "--extend-ignore=E203,W503"
+          - "--exclude=deployment/compiled,.venv,build,dist"
+
+  - repo: https://github.com/pre-commit/mirrors-mypy
+    rev: v1.10.1
+    hooks:
+      - id: mypy
+        files: ^src/
+        additional_dependencies: ["types-PyYAML"]
+        args: ["--ignore-missing-imports"]
+
+  # Guardrail: block committing a real .env or credential JSON.
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.18.4
+    hooks:
+      - id: gitleaks
