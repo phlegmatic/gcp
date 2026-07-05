@@ -13,11 +13,11 @@ on:
         type: choice
         options: [data, training]
       mode:
-        description: "submit (one run) or schedule (recurring cron)"
+        description: "bootstrap (seed raw BigQuery data), submit (one run), or schedule (recurring cron)"
         required: true
         default: "submit"
         type: choice
-        options: [submit, schedule]
+        options: [bootstrap, submit, schedule]
       cron:
         description: "Cron expression (only used when mode=schedule)"
         required: false
@@ -47,6 +47,11 @@ jobs:
           workload_identity_provider: projects/238048619124/locations/global/workloadIdentityPools/github-pool/providers/github
           service_account: vertex-sa@project-3bad66dc-6626-44e9-bf4.iam.gserviceaccount.com
 
+      # Provides the gcloud + bq CLIs, wired to the WIF credentials above.
+      # Needed for the one-time `bootstrap` mode that seeds demand_raw.sales.
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
       - name: Submit / schedule pipeline
         env:
           GCP_PROJECT_ID: project-3bad66dc-6626-44e9-bf4
@@ -56,8 +61,35 @@ jobs:
           GCS_DRIFT_PREFIX: gs://gcp_timeseries_ensemble_sanket/drift
           GCS_MODEL_PREFIX: gs://gcp_timeseries_ensemble_sanket/models
           VERTEX_SA_EMAIL: vertex-sa@project-3bad66dc-6626-44e9-bf4.iam.gserviceaccount.com
+          # Explicit BigQuery config (matches settings.py defaults) so the
+          # bootstrap load and the dbt step target the same dataset/location.
+          BQ_DATASET_RAW: demand_raw
+          BQ_DATASET_MART: demand_mart
+          BQ_LOCATION: US
         run: |
-          if [ "${{ inputs.mode }}" = "schedule" ]; then
+          if [ "${{ inputs.mode }}" = "bootstrap" ]; then
+            # One-time (idempotent) seed of the raw source table the data
+            # pipeline's dbt step reads from. Without this, run_dbt_transform
+            # fails because demand_raw.sales does not exist.
+            echo "[bootstrap] generating synthetic dataset..."
+            uv run python scripts/generate_data.py --mode drift
+
+            echo "[bootstrap] ensuring dataset ${GCP_PROJECT_ID}:${BQ_DATASET_RAW} exists in ${BQ_LOCATION}..."
+            bq --location="${BQ_LOCATION}" mk --dataset --force \
+              "${GCP_PROJECT_ID}:${BQ_DATASET_RAW}"
+
+            echo "[bootstrap] loading data/raw/sales.csv into ${BQ_DATASET_RAW}.sales..."
+            bq --location="${BQ_LOCATION}" load \
+              --autodetect --replace --source_format=CSV --skip_leading_rows=1 \
+              "${GCP_PROJECT_ID}:${BQ_DATASET_RAW}.sales" \
+              data/raw/sales.csv
+
+            echo "[bootstrap] verifying row count..."
+            bq --location="${BQ_LOCATION}" query --use_legacy_sql=false \
+              --maximum_bytes_billed=1000000000 \
+              "SELECT COUNT(*) AS rows FROM \`${GCP_PROJECT_ID}.${BQ_DATASET_RAW}.sales\`"
+            echo "[bootstrap] done. Now run this workflow with mode=submit (pipeline=data, then training)."
+          elif [ "${{ inputs.mode }}" = "schedule" ]; then
             uv run python deployment/deploy_pipeline.py \
               --pipeline "${{ inputs.pipeline }}" \
               --schedule "${{ inputs.cron }}"
