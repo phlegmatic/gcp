@@ -199,6 +199,22 @@ def detect_drift(
     ref_df = pd.read_parquet(reference.path)
     cur_df = pd.read_parquet(current.path)
 
+    # Evidently's DataDriftPreset runs np.corrcoef over the numeric columns.
+    # BigQuery's mart returns some columns as pandas *nullable/extension* dtypes
+    # (e.g. Int64 for EXTRACT(dayofweek/month), and nullable floats for lags).
+    # Calling `.values` on those yields an object-dtype array, which makes
+    # np.corrcoef fail with "'float' object has no attribute 'shape'". Coerce
+    # every numeric column to plain float64 (and drop the date column, which is
+    # not a drift feature) so numpy receives real float arrays.
+    def _prep(df: pd.DataFrame) -> pd.DataFrame:
+        df = df.drop(columns=[c for c in ("ds",) if c in df.columns])
+        for col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").astype("float64")
+        return df
+
+    ref_df = _prep(ref_df)
+    cur_df = _prep(cur_df)
+
     report = Report(metrics=[DataDriftPreset()])
     report.run(reference_data=ref_df, current_data=cur_df)
     result = report.as_dict()
