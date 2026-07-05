@@ -87,7 +87,7 @@ jobs:
             echo "[bootstrap] verifying row count..."
             bq --location="${BQ_LOCATION}" query --use_legacy_sql=false \
               --maximum_bytes_billed=1000000000 \
-              "SELECT COUNT(*) AS rows FROM \`${GCP_PROJECT_ID}.${BQ_DATASET_RAW}.sales\`"
+              "SELECT COUNT(*) AS rows_count FROM \`${GCP_PROJECT_ID}.${BQ_DATASET_RAW}.sales\`"
             echo "[bootstrap] done. Now run this workflow with mode=submit (pipeline=data, then training)."
           elif [ "${{ inputs.mode }}" = "schedule" ]; then
             uv run python deployment/deploy_pipeline.py \
