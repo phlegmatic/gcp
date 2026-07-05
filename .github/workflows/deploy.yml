@@ -44,18 +44,18 @@ jobs:
       - id: auth
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
-          service_account: ${{ secrets.VERTEX_SA_EMAIL }}
+          workload_identity_provider: projects/238048619124/locations/global/workloadIdentityPools/github-pool/providers/github
+          service_account: vertex-sa@project-3bad66dc-6626-44e9-bf4.iam.gserviceaccount.com
 
       - name: Submit / schedule pipeline
         env:
-          GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCP_REGION: 'us-cental1'
+          GCP_PROJECT_ID: project-3bad66dc-6626-44e9-bf4
+          GCP_REGION: 'us-central1'
           GCS_BUCKET: gs://gcp_timeseries_ensemble_sanket
           GCS_PIPELINE_ROOT: gs://gcp_timeseries_ensemble_sanket/pipeline-root
           GCS_DRIFT_PREFIX: gs://gcp_timeseries_ensemble_sanket/drift
           GCS_MODEL_PREFIX: gs://gcp_timeseries_ensemble_sanket/models
-          VERTEX_SA_EMAIL: ${{ secrets.VERTEX_SA_EMAIL }}
+          VERTEX_SA_EMAIL: vertex-sa@project-3bad66dc-6626-44e9-bf4.iam.gserviceaccount.com
         run: |
           if [ "${{ inputs.mode }}" = "schedule" ]; then
             uv run python deployment/deploy_pipeline.py \
