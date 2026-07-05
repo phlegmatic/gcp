@@ -30,7 +30,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production  # Add required reviewers here for a manual gate.
+    environment: prod  # Add required reviewers here for a manual gate.
     steps:
       - uses: actions/checkout@v4
 
