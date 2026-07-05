@@ -10,6 +10,7 @@ tiers.
 from kfp import dsl
 
 from forecasting.components.data_components import (
+    _DBT_PROJECT_FILES,
     detect_drift,
     extract_reference_and_current,
     run_dbt_transform,
@@ -28,12 +29,18 @@ def data_ingest_validation_pipeline(
     drift_report_uri: str,
     split_date: str,
     dbt_target: str = "prod",
+    # The dbt project files are embedded at compile time (see
+    # data_components._load_dbt_project_files). Threading them through a
+    # pipeline parameter — instead of a component default — is required because
+    # KFP does NOT capture module-level names into the remote component source.
+    dbt_project_files_json: str = _DBT_PROJECT_FILES,
 ) -> None:
     dbt_task = run_dbt_transform(
         project_id=project_id,
         bq_dataset_mart=bq_dataset_mart,
         bq_location=bq_location,
         dbt_target=dbt_target,
+        dbt_project_files_json=dbt_project_files_json,
     )
     dbt_task.set_display_name("dbt-build-mart")
     # Cap resources to the smallest CPU footprint (cost control).

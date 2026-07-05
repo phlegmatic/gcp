@@ -16,10 +16,15 @@ PY_IMAGE = "python:3.11-slim"
 # `dbt/` directory, so `dbt build --project-dir /app/dbt` used to fail with
 # "Path '/app/dbt' does not exist". Instead of building a custom container, we
 # read every file under `dbt/` here (when the pipeline is compiled) and embed
-# their contents as a default component parameter. At runtime the component
-# rehydrates the project into a temp dir and runs dbt against it. This keeps
-# `dbt/` as the single source of truth (no hardcoded SQL) and stays fully
-# within the no-container-build, free-tier design.
+# their contents. At runtime the component rehydrates the project into a temp
+# dir and runs dbt against it. This keeps `dbt/` as the single source of truth
+# (no hardcoded SQL) and stays within the no-container-build, free-tier design.
+#
+# IMPORTANT: `_DBT_PROJECT_FILES` is consumed by the *pipeline* function (see
+# pipelines/data_pipeline.py), which threads it into the component as a runtime
+# parameter value. It must NOT be used as a component parameter default: KFP
+# serializes only the component's function body, so a module-level name
+# referenced there would raise `NameError` on the remote worker.
 # ---------------------------------------------------------------------------
 _DBT_DIR = Path(__file__).resolve().parents[3] / "dbt"
 
@@ -59,8 +64,8 @@ def run_dbt_transform(
     project_id: str,
     bq_dataset_mart: str,
     bq_location: str,
+    dbt_project_files_json: str,
     dbt_target: str = "prod",
-    dbt_project_files_json: str = _DBT_PROJECT_FILES,
 ) -> str:
     """Run `dbt build` against BigQuery to materialize the mart table.
 
