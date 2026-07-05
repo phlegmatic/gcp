@@ -219,9 +219,45 @@ def detect_drift(
     report.run(reference_data=ref_df, current_data=cur_df)
     result = report.as_dict()
 
-    summary = result["metrics"][0]["result"]
-    dataset_drift = bool(summary.get("dataset_drift", False))
-    n_drifted = int(summary.get("number_of_drifted_columns", 0))
+    # Version-robust extraction of the drift summary. Evidently's exact schema
+    # varies across releases: DataDriftPreset can emit several metrics
+    # (e.g. DatasetDriftMetric + DataDriftTable) in an order that is not
+    # guaranteed, and key names have shifted between versions. Instead of
+    # assuming metrics[0] and fixed keys, scan every metric's result dict and
+    # pick the first value found among known aliases.
+    def _first_key(d: dict, keys: tuple) -> object:
+        for key in keys:
+            if key in d and d[key] is not None:
+                return d[key]
+        return None
+
+    metrics_list = result.get("metrics", []) if isinstance(result, dict) else []
+    dataset_drift = False
+    n_drifted = 0
+    summary: dict = {}
+    for metric in metrics_list:
+        res = metric.get("result", {}) if isinstance(metric, dict) else {}
+        if not isinstance(res, dict):
+            continue
+        drift_val = _first_key(res, ("dataset_drift", "drift_detected"))
+        drifted_val = _first_key(
+            res,
+            (
+                "number_of_drifted_columns",
+                "n_drifted_features",
+                "number_of_drifted_features",
+            ),
+        )
+        if drift_val is not None:
+            dataset_drift = bool(drift_val)
+        if drifted_val is not None:
+            try:
+                n_drifted = int(drifted_val)  # type: ignore[call-overload]
+            except (TypeError, ValueError):
+                n_drifted = 0
+        # Keep the richest result dict for the persisted JSON report.
+        if len(res) > len(summary):
+            summary = res
 
     drift_metrics.log_metric("dataset_drift", float(dataset_drift))
     drift_metrics.log_metric("n_drifted_features", float(n_drifted))
