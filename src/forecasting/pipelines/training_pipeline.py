@@ -17,7 +17,7 @@ from forecasting.components.training_components import (
     train_single_model,
 )
 
-PY_IMAGE = "python:3.10-slim"
+PY_IMAGE = "python:3.11-slim"
 
 
 @dsl.component(
@@ -25,6 +25,7 @@ PY_IMAGE = "python:3.10-slim"
     packages_to_install=[
         "google-cloud-bigquery==3.25.0",
         "pandas==2.2.2",
+        "numpy==1.26.4",
         "pyarrow==16.1.0",
         "db-dtypes==1.2.0",
     ],

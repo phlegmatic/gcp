@@ -40,6 +40,15 @@ def train_single_model(
     target = "demand"
     feature_cols = [c for c in df.columns if c not in ("ds", target)]
 
+    # BigQuery returns some mart columns as pandas nullable/extension dtypes
+    # (Int64 for calendar features, nullable floats for lags). Coerce features
+    # AND target to plain float64 and drop any rows with NaN, otherwise Ridge
+    # raises "Input X contains NaN" and extension dtypes can confuse sklearn.
+    df = df.copy()
+    for col in feature_cols + [target]:
+        df[col] = pd.to_numeric(df[col], errors="coerce").astype("float64")
+    df = df.dropna(subset=feature_cols + [target]).reset_index(drop=True)
+
     split = int(len(df) * (1 - val_fraction))
     x_train, y_train = df[feature_cols].iloc[:split], df[target].iloc[:split]
     x_val, y_val = df[feature_cols].iloc[split:], df[target].iloc[split:]
@@ -108,6 +117,14 @@ def build_ensemble(
     df = pd.read_parquet(training_data.path)
     target = "demand"
     feature_cols = bundle_a["feature_cols"]
+
+    # Apply the SAME cleaning as train_single_model so the validation split and
+    # feature matrix line up exactly (float64, NaN rows dropped).
+    df = df.copy()
+    for col in feature_cols + [target]:
+        df[col] = pd.to_numeric(df[col], errors="coerce").astype("float64")
+    df = df.dropna(subset=feature_cols + [target]).reset_index(drop=True)
+
     split = int(len(df) * (1 - val_fraction))
     x_val = df[feature_cols].iloc[split:]
     y_val = df[target].iloc[split:].to_numpy()
