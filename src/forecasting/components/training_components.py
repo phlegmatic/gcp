@@ -7,7 +7,7 @@ can run as parallel branches of the DAG; the ensemble component fans them in.
 from kfp import dsl
 from kfp.dsl import Dataset, Input, Metrics, Model, Output
 
-PY_IMAGE = "python:3.10-slim"
+PY_IMAGE = "python:3.11-slim"
 SKLEARN_PKGS = [
     "scikit-learn==1.5.1",
     "pandas==2.2.2",

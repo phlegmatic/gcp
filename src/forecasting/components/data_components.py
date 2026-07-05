@@ -4,7 +4,7 @@ from kfp import dsl
 from kfp.dsl import Dataset, Input, Metrics, Output
 
 # Base image for lightweight python steps. Slim keeps cold-start + egress low.
-PY_IMAGE = "python:3.10-slim"
+PY_IMAGE = "python:3.11-slim"
 
 
 @dsl.component(
