@@ -169,6 +169,10 @@ def extract_reference_and_current(
     base_image=PY_IMAGE,
     packages_to_install=[
         "evidently==0.4.30",
+        # Evidently 0.4.30's np.corrcoef path breaks on NumPy 2.x with
+        # "AttributeError: 'float' object has no attribute 'shape'". Pin to the
+        # NumPy 1.x the project is tested against.
+        "numpy==1.26.4",
         "pandas==2.2.2",
         "pyarrow==16.1.0",
         "google-cloud-storage==2.17.0",
