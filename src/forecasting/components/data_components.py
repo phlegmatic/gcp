@@ -138,6 +138,7 @@ def extract_reference_and_current(
     Uses a hard `maximum_bytes_billed` cap so a bad query can never blow the
     1 TB/month Sandbox limit.
     """
+    import pandas as pd
     from google.cloud import bigquery
 
     client = bigquery.Client(project=project_id)
@@ -148,6 +149,17 @@ def extract_reference_and_current(
 
     ref_df = client.query(ref_sql, job_config=job_config).to_dataframe()
     cur_df = client.query(cur_sql, job_config=job_config).to_dataframe()
+
+    # BigQuery returns DATE columns as the `db-dtypes` extension type
+    # ("dbdate"). That extension dtype is only understood where `db-dtypes` is
+    # installed; the downstream drift step does not install it, so writing it
+    # into parquet would fail there with "data type 'dbdate' not understood".
+    # Normalize the date column to a plain pandas datetime64 so the parquet is
+    # portable across steps.
+    if "ds" in ref_df.columns:
+        ref_df["ds"] = pd.to_datetime(ref_df["ds"])
+    if "ds" in cur_df.columns:
+        cur_df["ds"] = pd.to_datetime(cur_df["ds"])
 
     ref_df.to_parquet(reference_out.path)
     cur_df.to_parquet(current_out.path)
