@@ -1,10 +1,54 @@
 """Pipeline 1 components: dbt transform, data extract, drift detection."""
 
+import json
+from pathlib import Path
+
 from kfp import dsl
 from kfp.dsl import Dataset, Input, Metrics, Output
 
 # Base image for lightweight python steps. Slim keeps cold-start + egress low.
 PY_IMAGE = "python:3.11-slim"
+
+# ---------------------------------------------------------------------------
+# Embed the dbt project at COMPILE time.
+#
+# KFP components run on a stock slim image that does NOT contain the repo's
+# `dbt/` directory, so `dbt build --project-dir /app/dbt` used to fail with
+# "Path '/app/dbt' does not exist". Instead of building a custom container, we
+# read every file under `dbt/` here (when the pipeline is compiled) and embed
+# their contents as a default component parameter. At runtime the component
+# rehydrates the project into a temp dir and runs dbt against it. This keeps
+# `dbt/` as the single source of truth (no hardcoded SQL) and stays fully
+# within the no-container-build, free-tier design.
+# ---------------------------------------------------------------------------
+_DBT_DIR = Path(__file__).resolve().parents[3] / "dbt"
+
+
+def _load_dbt_project_files() -> str:
+    """Read the dbt project tree into a JSON {relative_path: contents} map.
+
+    Skips generated/vendored dirs and empty `.gitkeep` placeholders. Returns a
+    JSON string so it can be passed as a serializable KFP parameter default.
+    """
+    files: dict[str, str] = {}
+    if not _DBT_DIR.is_dir():
+        return json.dumps(files)
+
+    skip_dirs = {"target", "dbt_packages", "logs", "__pycache__"}
+    for path in sorted(_DBT_DIR.rglob("*")):
+        if not path.is_file():
+            continue
+        if any(part in skip_dirs for part in path.relative_to(_DBT_DIR).parts):
+            continue
+        if path.name == ".gitkeep":
+            continue
+        rel = path.relative_to(_DBT_DIR).as_posix()
+        files[rel] = path.read_text(encoding="utf-8")
+    return json.dumps(files)
+
+
+# Computed once at import/compile time and baked into the compiled pipeline spec.
+_DBT_PROJECT_FILES = _load_dbt_project_files()
 
 
 @dsl.component(
@@ -16,22 +60,52 @@ def run_dbt_transform(
     bq_dataset_mart: str,
     bq_location: str,
     dbt_target: str = "prod",
+    dbt_project_files_json: str = _DBT_PROJECT_FILES,
 ) -> str:
-    """Run `dbt build` against BigQuery Sandbox to materialize the mart table.
+    """Run `dbt build` against BigQuery to materialize the mart table.
 
-    Returns the fully-qualified mart table id. The dbt project is expected to be
-    baked into the image or mounted; in the free-tier flow we shell out to dbt
-    which reads profiles from env vars set below.
+    The dbt project files are embedded (as a JSON map) at compile time and
+    rehydrated to a temp directory here, so no custom container image or mount
+    is required. dbt reads its BigQuery profile from the env vars set below.
+
+    Returns the fully-qualified mart table id.
     """
+    import json as _json
     import os
     import subprocess
+    import tempfile
 
     os.environ["DBT_PROJECT_ID"] = project_id
     os.environ["DBT_DATASET"] = bq_dataset_mart
     os.environ["DBT_LOCATION"] = bq_location
 
+    files = _json.loads(dbt_project_files_json)
+    if not files:
+        raise RuntimeError(
+            "No embedded dbt project files were found. The pipeline was likely "
+            "compiled without the `dbt/` directory present."
+        )
+
+    project_dir = tempfile.mkdtemp(prefix="dbt_project_")
+    for rel_path, contents in files.items():
+        dest = os.path.join(project_dir, rel_path)
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        with open(dest, "w", encoding="utf-8") as handle:
+            handle.write(contents)
+
+    # dbt looks for profiles.yml under --profiles-dir; the repo keeps it inside
+    # the project dir, so point both at the rehydrated project directory.
     subprocess.run(
-        ["dbt", "build", "--target", dbt_target, "--project-dir", "/app/dbt"],
+        [
+            "dbt",
+            "build",
+            "--target",
+            dbt_target,
+            "--project-dir",
+            project_dir,
+            "--profiles-dir",
+            project_dir,
+        ],
         check=True,
     )
     return f"{project_id}.{bq_dataset_mart}.demand_features"
