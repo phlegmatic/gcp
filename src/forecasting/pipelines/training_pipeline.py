@@ -37,6 +37,7 @@ def load_training_data(
     training_data: Output[Dataset],
 ) -> None:
     """Pull the feature mart from BigQuery into a parquet Dataset artifact."""
+    import pandas as pd
     from google.cloud import bigquery
 
     client = bigquery.Client(project=project_id)
@@ -44,6 +45,14 @@ def load_training_data(
     df = client.query(
         f"SELECT * FROM `{mart_table}` ORDER BY ds", job_config=job_config
     ).to_dataframe()
+
+    # BigQuery returns the DATE column as the db-dtypes "dbdate" extension type,
+    # which the training steps (no db-dtypes installed) cannot read back from
+    # parquet -> "data type 'dbdate' not understood". Normalize ds to a plain
+    # datetime64 so the artifact is portable across steps.
+    if "ds" in df.columns:
+        df["ds"] = pd.to_datetime(df["ds"])
+
     df.to_parquet(training_data.path)
 
 
