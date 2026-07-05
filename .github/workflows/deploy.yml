@@ -50,11 +50,11 @@ jobs:
       - name: Submit / schedule pipeline
         env:
           GCP_PROJECT_ID: ${{ secrets.GCP_PROJECT_ID }}
-          GCP_REGION: ${{ secrets.GCP_REGION }}
-          GCS_BUCKET: ${{ secrets.GCS_BUCKET }}
-          GCS_PIPELINE_ROOT: ${{ secrets.GCS_PIPELINE_ROOT }}
-          GCS_DRIFT_PREFIX: ${{ secrets.GCS_DRIFT_PREFIX }}
-          GCS_MODEL_PREFIX: ${{ secrets.GCS_MODEL_PREFIX }}
+          GCP_REGION: 'us-cental1'
+          GCS_BUCKET: gs://gcp_timeseries_ensemble_sanket
+          GCS_PIPELINE_ROOT: gs://gcp_timeseries_ensemble_sanket/pipeline-root
+          GCS_DRIFT_PREFIX: gs://gcp_timeseries_ensemble_sanket/drift
+          GCS_MODEL_PREFIX: gs://gcp_timeseries_ensemble_sanket/models
           VERTEX_SA_EMAIL: ${{ secrets.VERTEX_SA_EMAIL }}
         run: |
           if [ "${{ inputs.mode }}" = "schedule" ]; then
