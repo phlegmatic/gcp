@@ -1,8 +1,8 @@
 """Generate the architecture diagram for the GCP serverless forecasting project."""
 
 import matplotlib.pyplot as plt
-from matplotlib.patches import FancyBboxPatch, FancyArrowPatch
 from matplotlib.lines import Line2D
+from matplotlib.patches import FancyArrowPatch, FancyBboxPatch
 
 # ---- palette ---------------------------------------------------------------
 C_CORE = "#E8F0FE"  # local package
@@ -245,7 +245,11 @@ box(
     42.5,
     30,
     9.5,
-    "load_data\n  ├─► train ridge  ─────┐\n  └─► train rand_forest ┤→ build_ensemble\n         (parallel)     (inverse-RMSE fan-in)",
+    (
+        "load_data\n  ├─► train ridge  ─────┐\n"
+        "  └─► train rand_forest ┤→ build_ensemble\n"
+        "         (parallel)     (inverse-RMSE fan-in)"
+    ),
     C_VERTEX,
     C_VERTEX_EDGE,
     fs=8,
