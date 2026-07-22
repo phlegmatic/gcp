@@ -12,7 +12,7 @@ on:
   workflow_dispatch:
     inputs:
       mode:
-        description: "bootstrap (one-time: enable APIs + create Artifact Registry repo + runtime SA), build-only (build+push image), or deploy (build+push+deploy Cloud Run)"
+        description: "bootstrap (infra only: APIs + Artifact Registry repo + runtime SA + bucket grant), build-only (ensure infra, then build+push image), or deploy (ensure infra, then build+push+deploy Cloud Run). deploy/build-only are self-provisioning; a separate bootstrap run is optional."
         required: true
         default: "deploy"
         type: choice
@@ -45,8 +45,14 @@ jobs:
           service_account: vertex-sa@project-3bad66dc-6626-44e9-bf4.iam.gserviceaccount.com
 
       # Provides the gcloud + gsutil CLIs, wired to the WIF credentials above.
+      # project_id pins the ACTIVE project so Cloud Build's staging + the
+      # serviceusage API check target our project, not the WIF host project
+      # (238048619124). quota_project_id fixes the "API not used in project
+      # 238048619124" error by billing serviceusage/API calls to our project.
       - name: Set up Cloud SDK
         uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: project-3bad66dc-6626-44e9-bf4
 
       - name: Build / deploy Cloud Run service
         env:
@@ -59,36 +65,56 @@ jobs:
           # The served model bundle Pipeline 2 (build_ensemble) writes to GCS.
           SERVING_MODEL_URI: gs://gcp_timeseries_ensemble_sanket/models/ensemble_model.pkl
         run: |
-          if [ "${{ inputs.mode }}" = "bootstrap" ]; then
-            # One-time, idempotent infra for Cloud Run serving:
-            #   1) enable APIs  2) Artifact Registry repo  3) least-privilege SA.
-            echo "[bootstrap] enabling serving APIs..."
+          set -euo pipefail
+
+          # Force every gcloud call (incl. the implicit serviceusage/API-enable
+          # check inside `builds submit`) to bill + target OUR project rather
+          # than the WIF pool's host project (238048619124).
+          gcloud config set core/project "${GCP_PROJECT_ID}"
+          gcloud config set billing/quota_project "${GCP_PROJECT_ID}"
+
+          RUN_SA="run-inference@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+
+          ensure_infra() {
+            # Idempotent: enable APIs, create the Artifact Registry repo, and the
+            # least-privilege runtime SA. Safe to run on every deploy so a single
+            # `deploy` run works without a prior `bootstrap` run.
+            echo "[infra] enabling serving APIs (idempotent)..."
             gcloud services enable run.googleapis.com \
               artifactregistry.googleapis.com cloudbuild.googleapis.com \
               --project="${GCP_PROJECT_ID}"
 
-            echo "[bootstrap] ensuring Artifact Registry repo 'serving' exists..."
+            echo "[infra] ensuring Artifact Registry repo 'serving' exists..."
             gcloud artifacts repositories describe serving \
               --location="${GCP_REGION}" --project="${GCP_PROJECT_ID}" >/dev/null 2>&1 \
               || gcloud artifacts repositories create serving \
                    --repository-format=docker --location="${GCP_REGION}" \
                    --project="${GCP_PROJECT_ID}"
 
-            echo "[bootstrap] ensuring runtime service account 'run-inference' exists..."
-            RUN_SA="run-inference@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+            echo "[infra] ensuring runtime service account 'run-inference' exists..."
             gcloud iam service-accounts describe "${RUN_SA}" \
               --project="${GCP_PROJECT_ID}" >/dev/null 2>&1 \
               || gcloud iam service-accounts create run-inference \
                    --display-name="Cloud Run inference (read-only models)" \
                    --project="${GCP_PROJECT_ID}"
+          }
 
+          if [ "${{ inputs.mode }}" = "bootstrap" ]; then
+            # One-time infra only (APIs + repo + SA + bucket grant), no build.
+            ensure_infra
             echo "[bootstrap] granting read-only access to the models bucket..."
             gsutil iam ch \
               "serviceAccount:${RUN_SA}:roles/storage.objectViewer" \
               "${GCS_BUCKET}"
             echo "[bootstrap] done. Now run this workflow with mode=deploy."
           elif [ "${{ inputs.mode }}" = "build-only" ]; then
+            ensure_infra
             uv run python deployment/serving/deploy_service.py --build-only
           else
+            ensure_infra
+            echo "[deploy] granting read-only access to the models bucket..."
+            gsutil iam ch \
+              "serviceAccount:${RUN_SA}:roles/storage.objectViewer" \
+              "${GCS_BUCKET}"
             uv run python deployment/serving/deploy_service.py --deploy
           fi
