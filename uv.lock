@@ -789,6 +789,15 @@ wheels = [
 ]
 
 [[package]]
+name = "dnspython"
+version = "2.8.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/8c/8b/57666417c0f90f08bcafa776861060426765fdb422eb10212086fb811d26/dnspython-2.8.0.tar.gz", hash = "sha256:181d3c6996452cb1189c4046c61599b84a5a86e099562ffde77d26984ff26d0f", size = 368251, upload-time = "2025-09-07T18:58:00.022Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ba/5a/18ad964b0086c6e62e2e7500f7edc89e3faa45033c71c1893d34eed2b2de/dnspython-2.8.0-py3-none-any.whl", hash = "sha256:01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af", size = 331094, upload-time = "2025-09-07T18:57:58.071Z" },
+]
+
+[[package]]
 name = "docker"
 version = "7.1.0"
 source = { registry = "https://pypi.org/simple" }
@@ -818,6 +827,19 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/2e/fa/351d165f6f9fe493a92a2e155f3097a4379dbe23e731b68543ce9988ee19/dynaconf-3.3.2.tar.gz", hash = "sha256:3b50232b774142702c3d4623633bcd76bb9951abf8567b7f1340d73a30a80899", size = 327805, upload-time = "2026-06-29T20:55:41.706Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/bb/7d/1e50069bb7d9774acbcb7d9509a4be95348e6476009f083d46cca67c5dbc/dynaconf-3.3.2-py3-none-any.whl", hash = "sha256:4bb8ac4222af0bb4315e3da40022c283ed140bafb80c36282a7973404a67cd8a", size = 270081, upload-time = "2026-06-29T20:55:40.066Z" },
+]
+
+[[package]]
+name = "email-validator"
+version = "2.3.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "dnspython" },
+    { name = "idna" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/f5/22/900cb125c76b7aaa450ce02fd727f452243f2e91a61af068b40adba60ea9/email_validator-2.3.0.tar.gz", hash = "sha256:9fc05c37f2f6cf439ff414f8fc46d917929974a82244c20eb10231ba60c54426", size = 51238, upload-time = "2025-08-26T13:09:06.831Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/de/15/545e2b6cf2e3be84bc1ed85613edd75b8aea69807a71c26f4ca6a9258e82/email_validator-2.3.0-py3-none-any.whl", hash = "sha256:80f13f623413e6b197ae73bb10bf4eb0908faf509ad8362c5edeb0be7fd450b4", size = 35604, upload-time = "2025-08-26T13:09:05.858Z" },
 ]
 
 [[package]]
@@ -893,6 +915,41 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/cc/2d/3ead106cef42eab305e15f9c089dcc68a40387d5ce04af18585af4ebbb44/faker-40.28.1.tar.gz", hash = "sha256:2a63fb51abab8790636d4030a094cf942404cbccc9c288d1cad70e2e3e9ecd58", size = 2022717, upload-time = "2026-07-01T22:23:43.763Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/92/a6/6111b9f13c1564b0e2f5dbeeb611fd00dc731e6add2336f62b798598c73d/faker-40.28.1-py3-none-any.whl", hash = "sha256:e8d3f5c469100a553d246dce7937c291308068a5ec6c9c3a228d7878b50720be", size = 2061052, upload-time = "2026-07-01T22:23:41.946Z" },
+]
+
+[[package]]
+name = "fastapi"
+version = "0.111.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "email-validator" },
+    { name = "fastapi-cli" },
+    { name = "httpx" },
+    { name = "jinja2" },
+    { name = "pydantic" },
+    { name = "python-multipart" },
+    { name = "starlette" },
+    { name = "typing-extensions" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/a0/ab/9f461ced846964e01c7a6ab25ea79ce2f07743285697b03c8e0e83d72e3e/fastapi-0.111.1.tar.gz", hash = "sha256:ddd1ac34cb1f76c2e2d7f8545a4bcb5463bce4834e81abf0b189e0c359ab2413", size = 288903, upload-time = "2024-07-14T17:56:30.005Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a4/d4/eb78f7c2648a3585095623f207d7e4b85a1be30347e01e0fdcd1d7d167a9/fastapi-0.111.1-py3-none-any.whl", hash = "sha256:4f51cfa25d72f9fbc3280832e84b32494cf186f50158d364a8765aabf22587bf", size = 92210, upload-time = "2024-07-14T17:56:26.684Z" },
+]
+
+[[package]]
+name = "fastapi-cli"
+version = "0.0.32"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "rich-toolkit" },
+    { name = "tomli", marker = "python_full_version < '3.11'" },
+    { name = "typer" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/33/eb/3b534c6f8e157f9ddbf2a153512307c886cad0b258739c200dd8ff8c4452/fastapi_cli-0.0.32.tar.gz", hash = "sha256:38024d2345275e1b37ce8848727a580d84901b570e96b3256d9d36a9a5039424", size = 26636, upload-time = "2026-07-16T12:16:58.678Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/d5/53/56ae5ae17bb0a5d89d1d31e5320eb1865553ebbfbde91cdc4c221245f2a8/fastapi_cli-0.0.32-py3-none-any.whl", hash = "sha256:8dcc286fa32f01bbd3f65dd09cfd5a2540ed5f2230b77db7fd30978d6165f3c4", size = 14670, upload-time = "2026-07-16T12:16:57.297Z" },
 ]
 
 [[package]]
@@ -1028,6 +1085,10 @@ notebook = [
     { name = "jupyterlab" },
     { name = "matplotlib" },
 ]
+serving = [
+    { name = "fastapi" },
+    { name = "uvicorn", extra = ["standard"] },
+]
 tracking = [
     { name = "mlflow" },
 ]
@@ -1050,6 +1111,7 @@ requires-dist = [
     { name = "dbt-bigquery", marker = "extra == 'data'", specifier = "==1.8.2" },
     { name = "dbt-core", marker = "extra == 'data'", specifier = "==1.8.3" },
     { name = "evidently", marker = "extra == 'data'", specifier = "==0.4.30" },
+    { name = "fastapi", marker = "extra == 'serving'", specifier = "==0.111.1" },
     { name = "google-cloud-aiplatform", specifier = "==1.60.0" },
     { name = "google-cloud-bigquery", specifier = "==3.25.0" },
     { name = "google-cloud-storage", specifier = "==2.17.0" },
@@ -1063,9 +1125,10 @@ requires-dist = [
     { name = "python-dotenv", specifier = "==1.0.1" },
     { name = "pyyaml", specifier = "==6.0.2" },
     { name = "scikit-learn", specifier = "==1.5.1" },
+    { name = "uvicorn", extras = ["standard"], marker = "extra == 'serving'", specifier = "==0.30.3" },
     { name = "ydata-profiling", marker = "extra == 'data'", specifier = "==4.9.0" },
 ]
-provides-extras = ["data", "tracking", "notebook"]
+provides-extras = ["data", "tracking", "serving", "notebook"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -3295,6 +3358,15 @@ wheels = [
 ]
 
 [[package]]
+name = "python-multipart"
+version = "0.0.32"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/5b/42/55c32bb9b12693c092ad250a0e82edb5b31ddeda6eb772de5f308b3804ad/python_multipart-0.0.32.tar.gz", hash = "sha256:be54b7f3fa167bb83e4fcd936b887b708f4e57fe75911c02aebf53efaf8d938e", size = 46881, upload-time = "2026-06-04T16:18:58.647Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e1/04/e8135ebd1ad02c56ec633277529b2602ff99ff634be76cdba5744cf554fd/python_multipart-0.0.32-py3-none-any.whl", hash = "sha256:ff6d3f776f16878c894e52e107296ffc890e913c611b1a4ec6c44e2821fe2e23", size = 30042, upload-time = "2026-06-04T16:18:57.319Z" },
+]
+
+[[package]]
 name = "python-slugify"
 version = "8.0.4"
 source = { registry = "https://pypi.org/simple" }
@@ -3650,6 +3722,20 @@ wheels = [
 ]
 
 [[package]]
+name = "rich-toolkit"
+version = "0.20.3"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "click" },
+    { name = "rich" },
+    { name = "typing-extensions" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e4/3a/a258c2fbc6c6bdf428611388f5698ba5d57ffdf0755e1cab474d9cc47813/rich_toolkit-0.20.3.tar.gz", hash = "sha256:223dd2cfba325ed55e94933b9e53f3aca13e9fdf76622bd564c18109a2273c1b", size = 205355, upload-time = "2026-07-13T14:38:06.837Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/e2/ce/639d0d0ce3d25c5edbd1afecd308bb35dc04883a45ac9f0855c8aee4e919/rich_toolkit-0.20.3-py3-none-any.whl", hash = "sha256:419aa87516d5f3849cca553c6dcf707c02a36d508fcf996946606725d34a3002", size = 36195, upload-time = "2026-07-13T14:38:05.687Z" },
+]
+
+[[package]]
 name = "rpds-py"
 version = "0.30.0"
 source = { registry = "https://pypi.org/simple" }
@@ -3943,6 +4029,18 @@ wheels = [
 ]
 
 [[package]]
+name = "starlette"
+version = "0.37.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/61/b5/6bceb93ff20bd7ca36e6f7c540581abb18f53130fabb30ba526e26fd819b/starlette-0.37.2.tar.gz", hash = "sha256:9af890290133b79fc3db55474ade20f6220a364a0402e0b556e7cd5e1e093823", size = 2843736, upload-time = "2024-03-05T16:16:54.267Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fd/18/31fa32ed6c68ba66220204ef0be798c349d0a20c1901f9d4a794e08c76d8/starlette-0.37.2-py3-none-any.whl", hash = "sha256:6fe59f29268538e5d0d182f2791a479a0c64638e6935d1c6989e63fb2699c6ee", size = 71908, upload-time = "2024-03-05T16:16:50.957Z" },
+]
+
+[[package]]
 name = "statsmodels"
 version = "0.14.6"
 source = { registry = "https://pypi.org/simple" }
@@ -4210,16 +4308,16 @@ wheels = [
 
 [[package]]
 name = "uvicorn"
-version = "0.49.0"
+version = "0.30.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "click" },
     { name = "h11" },
     { name = "typing-extensions", marker = "python_full_version < '3.11'" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/c4/1f/fa18009dea8469069cca78a4e877a008ab78f08b064bfc9ab891579077ff/uvicorn-0.49.0.tar.gz", hash = "sha256:ebf4271aa580d9de97f93192d4595176df6e91f9aae919ca73e4fc07df1e66a3", size = 91284, upload-time = "2026-06-03T22:01:30.448Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/77/40/b650be95700dc83d14c5f2b9eac9deb23cbca757a12ee20e473b5ef1ac48/uvicorn-0.30.3.tar.gz", hash = "sha256:0d114d0831ff1adbf231d358cbf42f17333413042552a624ea6a9b4c33dcfd81", size = 42762, upload-time = "2024-07-20T08:59:54.277Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/88/fa/e1388bbcf24ef3274f45c0c1c7b501fd14971037c1b6ee23610553307497/uvicorn-0.49.0-py3-none-any.whl", hash = "sha256:ba3d14c3ee7e41c6c654c46c9eb489d33213cdd30aa1696eab1374337c13f68f", size = 71376, upload-time = "2026-06-03T22:01:29.037Z" },
+    { url = "https://files.pythonhosted.org/packages/63/84/2a26b4eac1cf0c6b5b176dd4346cc4912af5e1b0efc150b865e28636ac34/uvicorn-0.30.3-py3-none-any.whl", hash = "sha256:94a3608da0e530cea8f69683aa4126364ac18e3826b6630d1a65f4638aade503", size = 62760, upload-time = "2024-07-20T08:59:51.926Z" },
 ]
 
 [package.optional-dependencies]

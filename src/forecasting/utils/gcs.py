@@ -34,6 +34,14 @@ def write_bytes_gcs(
     return uri
 
 
+def read_bytes_gcs(uri: str) -> bytes:
+    """Download the raw bytes of an object at a gs:// URI."""
+    bucket_name, blob_name = _split_gcs_uri(uri)
+    client = storage.Client()
+    blob = client.bucket(bucket_name).blob(blob_name)
+    return blob.download_as_bytes()
+
+
 def write_json_gcs(uri: str, obj: Any) -> str:
     """Serialize `obj` to JSON and upload to a gs:// URI."""
     payload = json.dumps(obj, indent=2, default=str).encode("utf-8")

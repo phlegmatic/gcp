@@ -35,6 +35,10 @@ data = [
 tracking = [
     "mlflow==2.14.3",
 ]
+serving = [
+    "fastapi==0.111.1",
+    "uvicorn[standard]==0.30.3",
+]
 notebook = [
     "jupyterlab>=4.2",
     "matplotlib>=3.9,<4",

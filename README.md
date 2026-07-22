@@ -22,6 +22,7 @@ Dependency management and task running use **[`uv`](https://docs.astral.sh/uv/)*
 | Artifacts / reports / models | Google Cloud Storage | 5 GB-months always free (us regions) |
 | Experiment tracking | Vertex AI Experiments *or* file-based MLflow on GCS | Metadata store is free |
 | Drift detection | `evidently` (fallback: `ydata-profiling`) | Runs in a slim step, report saved to GCS |
+| Model serving | Cloud Run (scale-to-zero FastAPI) | Bills $0 while idle, autoscales on demand; no 24/7 Vertex Endpoint node |
 
 Cost guardrails are centralized in `src/forecasting/config/settings.py`
 (`bq_max_bytes_billed`, `default_machine_type`) and enforced in every component.
@@ -152,6 +153,9 @@ free. Continue to the sections below when you're ready to run it serverlessly.
 | Launch notebook | `uv run jupyter lab notebooks/local_end_to_end.ipynb` |
 | Compile pipelines (no cost) | `uv run python deployment/deploy_pipeline.py --pipeline data --compile-only` |
 | Submit to Vertex AI | `uv run python deployment/deploy_pipeline.py --pipeline training --submit` |
+| Serve the model locally (FastAPI + demo UI) | `SERVING_MODEL_URI=./ensemble_model.pkl uv run uvicorn forecasting.serving.app:app --reload` |
+| Deploy serving to Cloud Run (dry-run) | `uv run python deployment/serving/deploy_service.py --dry-run` |
+| Deploy serving to Cloud Run | `uv run python deployment/serving/deploy_service.py --deploy` |
 
 Install pre-commit's git hook once: `uv run pre-commit install`.
 
@@ -168,9 +172,11 @@ Install pre-commit's git hook once: `uv run pre-commit install`.
 │   ├── models/            # PURE sklearn logic: features, train, ensemble
 │   ├── components/        # KFP @component definitions (thin wrappers)
 │   ├── pipelines/         # KFP @pipeline DAGs (data + training)
+│   ├── serving/           # Cloud Run inference: pure predictor + thin FastAPI app
 │   └── local_runner.py    # Cloud-free E2E runner (same logic as pipelines)
 ├── deployment/
 │   ├── deploy_pipeline.py # Compile KFP -> YAML -> submit to Vertex AI
+│   ├── serving/           # Cloud Run inference: Dockerfile, cloudbuild, deploy_service.py
 │   └── compiled/          # Generated pipeline specs (gitignored)
 ├── data/raw/              # Locally generated datasets (gitignored)
 ├── dbt/                   # dbt-bigquery project (staging + marts)
@@ -178,7 +184,7 @@ Install pre-commit's git hook once: `uv run pre-commit install`.
 │   └── local_end_to_end.ipynb  # Prototype the whole project locally
 ├── scripts/               # generate_data.py + e2-micro cron trigger
 ├── tests/{unit,integration}
-├── .github/workflows/     # ci.yml (compile+test) + deploy.yml (gated submit)
+├── .github/workflows/     # ci.yml (compile+test) + deploy.yml (gated submit) + deploy-serving.yml (gated Cloud Run)
 ├── AI_AGENT_GUIDELINES.md # READ THIS before AI-assisted changes
 ├── .pre-commit-config.yaml
 ├── .python-version        # pinned interpreter for uv
@@ -275,6 +281,74 @@ runs serverless).
 (`workflow_dispatch`) with `pipeline` and `mode` inputs. Uses Workload Identity
 Federation (no JSON keys). CI (`ci.yml`) lints + unit-tests + compiles on every
 push, all via `uv`.
+
+---
+
+# Serving the model on Cloud Run (scale-to-zero)
+
+Once Pipeline 2 has written the ensemble bundle to `GCS_MODEL_PREFIX`
+(`ensemble_model.pkl`), you can expose it as a REST API + demo UI. We use
+**Cloud Run**, not a Vertex AI Endpoint: an Endpoint bills a node **24/7** even
+at zero traffic, whereas Cloud Run scales to **zero** ($0 while idle), autoscales
+on demand, and gives free HTTPS. The service is loosely coupled to training — it
+only *reads* the model artifact from GCS.
+
+The container:
+- pins runtime deps to the **exact training versions** (avoids pickle skew),
+- loads the model **lazily** (fast cold starts, `/healthz` needs no model),
+- runs as a **least-privilege** service account (read-only on the models bucket).
+
+See `PROJECT_OVERVIEW.md` (Model Serving) and
+`deployment/serving/deploy_service.py` for the full trade-offs.
+
+### Serve locally (no cloud)
+
+```bash
+uv sync --extra serving
+# Point at a local bundle produced by the notebook/local runner:
+SERVING_MODEL_URI=./data/local_run/ensemble_model.pkl \
+  uv run uvicorn forecasting.serving.app:app --reload
+# Open http://127.0.0.1:8000  (demo UI) or POST /predict {"horizon": 14}
+```
+
+Endpoints: `GET /healthz` (liveness), `GET /metadata` (metrics + member
+weights), `POST /predict` (recursive forecast, horizon 1–90), `GET /` (demo UI).
+
+### Deploy to Cloud Run
+
+**Option A — CLI (`deploy_service.py`):**
+```bash
+# One-time infra (enable APIs, Artifact Registry repo, least-privilege SA):
+# see the header of deployment/serving/deploy_service.py for the exact commands.
+
+# Print the gcloud commands without running anything:
+uv run python deployment/serving/deploy_service.py --dry-run
+
+# Build + push the image only:
+uv run python deployment/serving/deploy_service.py --build-only
+
+# Build image (Cloud Build) + deploy the scale-to-zero service:
+uv run python deployment/serving/deploy_service.py --deploy
+```
+
+**Option B — GitHub Actions (gated):** trigger
+`.github/workflows/deploy-serving.yml` manually (`workflow_dispatch`) with a
+`mode` input. Uses Workload Identity Federation (no JSON keys), same as
+`deploy.yml`:
+- `bootstrap` — one-time, idempotent: enable serving APIs, create the
+  Artifact Registry `serving` repo, and the least-privilege `run-inference`
+  service account with read-only access to the models bucket.
+- `build-only` — build + push the image via Cloud Build.
+- `deploy` — build + push, then deploy the Cloud Run service.
+
+After deploy, fetch the URL:
+```bash
+gcloud run services describe demand-forecasting \
+  --region=us-central1 --format='value(status.url)'
+```
+
+Cost guardrails (in `deploy_service.py`): `--min-instances=0` (scale to zero),
+`--max-instances=2`, `--concurrency=80`, `--cpu=1`, `--memory=512Mi`.
 
 ---
 

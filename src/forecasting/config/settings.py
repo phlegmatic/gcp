@@ -60,6 +60,13 @@ class Settings:
         default_factory=lambda: os.getenv("MLFLOW_GCS_ARTIFACT_ROOT", "")
     )
 
+    # ---- Online serving (Cloud Run, scale-to-zero) --------------------------
+    #: Override of the served artifact URI. If unset, defaults to
+    #: f"{model_prefix}/ensemble_model.pkl" (resolved by the serving app).
+    serving_model_uri: str = field(
+        default_factory=lambda: os.getenv("SERVING_MODEL_URI", "")
+    )
+
     # ---- Free-tier guardrails (do NOT raise these without cost review) ------
     #: Vertex AI Pipelines steps default to e2-standard machines; we force the
     #: smallest allowed CPU machine to minimize vCPU-hour cost.

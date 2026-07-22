@@ -1,0 +1,24 @@
+steps:
+  # Build the inference image using the serving Dockerfile explicitly.
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - -f
+      - deployment/serving/Dockerfile
+      - -t
+      - ${_IMAGE}
+      - .
+  # Push it to Artifact Registry.
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_IMAGE}
+
+images:
+  - ${_IMAGE}
+
+# _IMAGE is supplied at submit time:
+#   gcloud builds submit --config deployment/serving/cloudbuild.yaml \
+#     --substitutions _IMAGE=REGION-docker.pkg.dev/PROJECT/serving/demand-forecasting:latest
+options:
+  logging: CLOUD_LOGGING_ONLY

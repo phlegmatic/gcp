@@ -1,0 +1,94 @@
+name: deploy-serving
+
+# Manual, gated deployment of the inference container to Cloud Run
+# (scale-to-zero). This is the ONLY workflow permitted to build/push the serving
+# image and deploy the Cloud Run service. Uses Workload Identity Federation (no
+# long-lived JSON keys), mirroring deploy.yml.
+#
+# Why Cloud Run (not a Vertex AI Endpoint)? An Endpoint bills a node 24/7 even at
+# zero traffic; Cloud Run scales to ZERO ($0 idle). See PROJECT_OVERVIEW.md
+# (Model Serving) and deployment/serving/deploy_service.py for the trade-offs.
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "bootstrap (one-time: enable APIs + create Artifact Registry repo + runtime SA), build-only (build+push image), or deploy (build+push+deploy Cloud Run)"
+        required: true
+        default: "deploy"
+        type: choice
+        options: [bootstrap, build-only, deploy]
+
+permissions:
+  contents: read
+  id-token: write  # Required for Workload Identity Federation.
+
+jobs:
+  deploy-serving:
+    runs-on: ubuntu-latest
+    environment: prod  # Add required reviewers here for a manual gate.
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv (pinned) + project Python
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      # The serving extra provides fastapi/uvicorn used by deploy_service.py's
+      # settings import; data/tracking match the rest of the deploy path.
+      - run: uv sync --extra serving --extra data --extra tracking
+
+      - id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: projects/238048619124/locations/global/workloadIdentityPools/github-pool/providers/github
+          service_account: vertex-sa@project-3bad66dc-6626-44e9-bf4.iam.gserviceaccount.com
+
+      # Provides the gcloud + gsutil CLIs, wired to the WIF credentials above.
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build / deploy Cloud Run service
+        env:
+          GCP_PROJECT_ID: project-3bad66dc-6626-44e9-bf4
+          GCP_REGION: 'us-central1'
+          GCS_BUCKET: gs://gcp_timeseries_ensemble_sanket
+          GCS_PIPELINE_ROOT: gs://gcp_timeseries_ensemble_sanket/pipeline-root
+          GCS_DRIFT_PREFIX: gs://gcp_timeseries_ensemble_sanket/drift
+          GCS_MODEL_PREFIX: gs://gcp_timeseries_ensemble_sanket/models
+          # The served model bundle Pipeline 2 (build_ensemble) writes to GCS.
+          SERVING_MODEL_URI: gs://gcp_timeseries_ensemble_sanket/models/ensemble_model.pkl
+        run: |
+          if [ "${{ inputs.mode }}" = "bootstrap" ]; then
+            # One-time, idempotent infra for Cloud Run serving:
+            #   1) enable APIs  2) Artifact Registry repo  3) least-privilege SA.
+            echo "[bootstrap] enabling serving APIs..."
+            gcloud services enable run.googleapis.com \
+              artifactregistry.googleapis.com cloudbuild.googleapis.com \
+              --project="${GCP_PROJECT_ID}"
+
+            echo "[bootstrap] ensuring Artifact Registry repo 'serving' exists..."
+            gcloud artifacts repositories describe serving \
+              --location="${GCP_REGION}" --project="${GCP_PROJECT_ID}" >/dev/null 2>&1 \
+              || gcloud artifacts repositories create serving \
+                   --repository-format=docker --location="${GCP_REGION}" \
+                   --project="${GCP_PROJECT_ID}"
+
+            echo "[bootstrap] ensuring runtime service account 'run-inference' exists..."
+            RUN_SA="run-inference@${GCP_PROJECT_ID}.iam.gserviceaccount.com"
+            gcloud iam service-accounts describe "${RUN_SA}" \
+              --project="${GCP_PROJECT_ID}" >/dev/null 2>&1 \
+              || gcloud iam service-accounts create run-inference \
+                   --display-name="Cloud Run inference (read-only models)" \
+                   --project="${GCP_PROJECT_ID}"
+
+            echo "[bootstrap] granting read-only access to the models bucket..."
+            gsutil iam ch \
+              "serviceAccount:${RUN_SA}:roles/storage.objectViewer" \
+              "${GCS_BUCKET}"
+            echo "[bootstrap] done. Now run this workflow with mode=deploy."
+          elif [ "${{ inputs.mode }}" = "build-only" ]; then
+            uv run python deployment/serving/deploy_service.py --build-only
+          else
+            uv run python deployment/serving/deploy_service.py --deploy
+          fi
